@@ -8,9 +8,7 @@ use once_cell::sync;
 use reqwest::blocking;
 
 static COUNT: sync::Lazy<regex::Regex> = sync::Lazy::new(|| {
-        regex::RegexBuilder::new(r#"'SBO'[^}]*'count'[^,]*(\d+),"#)
-            .multi_line(true)
-            .build()
+        regex::Regex::new(r#"'SBO':\{'capacity':\d+,'count':(\d+),"#)
             .expect("[INTERNAL ERROR]: invalid regex")
 
 });
@@ -32,15 +30,17 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         .append(true)
         .open(path)?;
 
-    let html = client
+    let mut html = client
         .get(URL)
         .send()
         .and_then(blocking::Response::text)?;
 
+    html.retain(|c| !c.is_whitespace());
+
     let count = COUNT
         .captures(&*html)
         .and_then(|captures| captures.get(1))
-        .expect("[INTERNAL ERROR]: count CSS selector returned nothing")
+        .expect("[INTERNAL ERROR]: count regex returned nothing")
         .as_str();
 
     let time = time::SystemTime::now()

@@ -1,3 +1,4 @@
+use std::env;
 use std::error;
 use std::io::Write as _;
 use std::fs;
@@ -17,6 +18,10 @@ static COUNT: sync::Lazy<regex::Regex> = sync::Lazy::new(|| {
 static URL: &str = "https://portal.rockgympro.com/portal/public/7a2ec613bb982d4ba91785c2cdb45902/occupancy?&iframeid=occupancyCounter&fId=1325";
 
 fn main() -> Result<(), Box<dyn error::Error>> {
+    let path = env::args()
+        .nth(1)
+        .expect("Usage: `rock-spot <PATH_TO_LOG_FILE>`");
+
     let client = blocking::Client::builder()
         .user_agent("rock-spot-bot/1.0 nwtnni@gmail.com")
         .build()
@@ -25,7 +30,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     let mut log = fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open("log.txt")?;
+        .open(path)?;
 
     let html = client
         .get(URL)

@@ -1,27 +1,20 @@
 use std::env;
 use std::error;
-use std::io::Write as _;
 use std::fs;
+use std::io::Write as _;
 use std::time;
 
-use once_cell::sync;
 use reqwest::blocking;
 
-static COUNT: sync::Lazy<regex::Regex> = sync::Lazy::new(|| {
-        regex::Regex::new(r#"'SBO':\{'capacity':\d+,'count':(\d+),"#)
-            .expect("[INTERNAL ERROR]: invalid regex")
-
-});
-
-static URL: &str = "https://portal.rockgympro.com/portal/public/7a2ec613bb982d4ba91785c2cdb45902/occupancy?&iframeid=occupancyCounter&fId=1325";
-
 fn main() -> Result<(), Box<dyn error::Error>> {
-    let path = env::args()
-        .nth(1)
-        .expect("Usage: `rock-spot <PATH_TO_LOG_FILE>`");
+    let path =
+        env::var("RGP_OCCUPANCY_LOG").expect("Must set `RGP_OCCUPANCY_LOG` environment variable");
+    let facility_id = env::var("RGP_OCCUPANCY_FACILITY_ID")
+        .expect("Must set `RGP_OCCUPANCY_FACILITY_ID` environment variable");
+    let facility_tag = env::var("RGP_OCCUPANCY_FACILITY_TAG")
+        .expect("Must set `RGP_OCCUPANCY_FACILITY_TAG` environment variable");
 
     let client = blocking::Client::builder()
-        .user_agent("rock-spot-bot/1.0 nwtnni@gmail.com")
         .build()
         .expect("[INTERNAL ERROR]: invalid reqwest client");
 
@@ -31,17 +24,24 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         .open(path)?;
 
     let mut html = client
-        .get(URL)
+        .get(&format!(
+            "https://portal.rockgympro.com/portal/public/{}/occupancy",
+            facility_id
+        ))
         .send()
         .and_then(blocking::Response::text)?;
 
     html.retain(|c| !c.is_whitespace());
 
-    let count = COUNT
-        .captures(&*html)
-        .and_then(|captures| captures.get(1))
-        .expect("[INTERNAL ERROR]: count regex returned nothing")
-        .as_str();
+    let count = regex::Regex::new(&format!(
+        "'{}':\\{{'capacity':\\d+,'count':(\\d+),",
+        facility_tag
+    ))
+    .expect("[INTERNAL ERROR]: invalid regex")
+    .captures(&*html)
+    .and_then(|captures| captures.get(1))
+    .expect("[INTERNAL ERROR]: count regex returned nothing")
+    .as_str();
 
     let time = time::SystemTime::now()
         .duration_since(time::UNIX_EPOCH)

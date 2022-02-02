@@ -1,6 +1,7 @@
 from collections import defaultdict
 import csv
 import matplotlib.pyplot as plt
+import sys
 import time
 
 # Occupancy counts are grouped into 15-minute bins
@@ -19,13 +20,13 @@ import time
 # total count for averaging.
 buckets = defaultdict(lambda: [0, 0])
 
-with open("occupancy.csv", "r") as file:
+with open(sys.argv[1], "r") as file:
     reader = csv.reader(file)
     for [t, c] in reader:
         t = time.localtime(int(t))
         c = int(c)
 
-        key = t.tm_wday * 24 * 60 + t.tm_hour * 60 + t.tm_min
+        key = t.tm_wday * 24 * 60 + t.tm_hour * 60 + ((t.tm_min // 15) * 15)
 
         buckets[key][0] += c
         buckets[key][1] += 1
@@ -47,7 +48,7 @@ for time in times:
         ))
 
 plt.scatter(times, counts)
-plt.title("Rock Spot Climbing (South Boston) Occupancy")
+plt.title("Climbing Gym Occupancy")
 plt.xlabel("Time (Mon - Sun)")
 plt.xticks(ticks, labels, rotation='vertical')
 plt.ylabel("Occupants")
